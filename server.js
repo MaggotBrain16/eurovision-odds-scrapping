@@ -15,11 +15,12 @@ app.get("/", (req, res) => {
 
 // Route principale : Scraping des cotes
 app.get("/eurovision-odds", async (req, res) => {
+    let browser;
     try {
         console.log("🚀 Puppeteer démarrage...");
 
-        const browser = await puppeteer.launch({
-            headless: "new",
+        browser = await puppeteer.launch({
+            headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
@@ -30,7 +31,7 @@ app.get("/eurovision-odds", async (req, res) => {
         console.log("🌐 Chargement de la page...");
         await page.goto("https://eurovisionworld.com/odds/eurovision", {
             waitUntil: "domcontentloaded",
-            timeout: 30000,
+            timeout: 40000,  // ✅ Timeout augmenté pour éviter les erreurs de chargement
         });
 
         await page.waitForSelector("tr[data-dt]", { timeout: 30000 });
@@ -79,6 +80,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
     } catch (error) {
         console.error("❌ Erreur de scraping :", error);
+        if (browser) await browser.close(); // ✅ Fermeture du navigateur en cas d'erreur
         res.status(500).json({ message: "Error during scraping", error: error.toString() });
     }
 });
