@@ -1,4 +1,5 @@
 import express from "express";
+import { exec } from "child_process"; // ✅ Pour installer Chromium
 import puppeteer from "puppeteer-core"; // ✅ Utilisation de `puppeteer-core`
 import cors from "cors";
 
@@ -7,6 +8,15 @@ const PORT = process.env.PORT || 3000;
 
 // Activer CORS
 app.use(cors());
+
+// Installer Chromium avant de démarrer Puppeteer
+exec("apt-get update && apt-get install -y chromium-browser", (error, stdout, stderr) => {
+    if (error) {
+        console.error("❌ Erreur d'installation de Chromium :", error);
+        return;
+    }
+    console.log("✅ Chromium installé avec succès !");
+});
 
 // Route d'accueil pour éviter l'erreur "Cannot GET /"
 app.get("/", (req, res) => {
@@ -21,7 +31,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
         browser = await puppeteer.launch({
             headless: true,
-            executablePath: "/usr/bin/chromium-browser", // ✅ Render fournit déjà Chromium ici
+            executablePath: "/usr/bin/chromium-browser", // ✅ Vérifie le chemin après installation
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
