@@ -1,5 +1,6 @@
 import express from "express";
-import { chromium } from "playwright-chromium";
+import puppeteer from "puppeteer-core";
+import chromium from "chrome-aws-lambda";
 import cors from "cors";
 
 const app = express();
@@ -8,28 +9,24 @@ const PORT = process.env.PORT || 3000;
 // Activer CORS
 app.use(cors());
 
-// Route d'accueil
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
 
-// Route de santé
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "OK", message: "Service is running" });
 });
 
-// Route principale : Scraping des cotes
 app.get("/eurovision-odds", async (req, res) => {
     let browser;
     try {
-        console.log("🚀 Playwright démarrage...");
+        console.log("🚀 Démarrage du scraping...");
 
-        browser = await chromium.launch({
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox'
-            ]
+        browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath,
+            headless: chromium.headless,
         });
 
         const page = await browser.newPage();
@@ -54,7 +51,6 @@ app.get("/eurovision-odds", async (req, res) => {
                 const oddsEls = row.querySelectorAll("td:not(.odt):not(.ohi):not(.opo)");
 
                 if (!countryEl || !winChanceEl || oddsEls.length === 0) {
-                    console.log("⚠️ Ligne ignorée (données manquantes)");
                     return;
                 }
 
@@ -62,7 +58,6 @@ app.get("/eurovision-odds", async (req, res) => {
                 const match = rawText.match(/Eurovision 2025 (.*?): (.*?) - "(.*?)"/);
 
                 if (!match) {
-                    console.warn("⚠️ Format inattendu :", rawText);
                     return;
                 }
 
@@ -80,14 +75,11 @@ app.get("/eurovision-odds", async (req, res) => {
 
         console.log("📊 Données extraites :", oddsData.length, "entrées");
         
-        const timestamp = new Date().toISOString();
-        
         res.json({
             count: oddsData.length,
             entries: oddsData,
-            timestamp: timestamp,
-            success: true,
-            engine: "playwright"
+            timestamp: new Date().toISOString(),
+            success: true
         });
 
     } catch (error) {
@@ -105,14 +97,11 @@ app.get("/eurovision-odds", async (req, res) => {
     }
 });
 
-// Middleware de gestion d'erreurs
 app.use((err, req, res, next) => {
     console.error("Error middleware:", err);
     res.status(500).json({ message: "Internal Server Error", error: err.message });
 });
 
-// Démarrer le serveur
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Eurovision backend avec Playwright prêt sur le port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
 });
