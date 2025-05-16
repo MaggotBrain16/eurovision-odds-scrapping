@@ -1,29 +1,17 @@
 import express from "express";
-import { exec } from "child_process"; // ✅ Pour installer Chromium
-import puppeteer from "puppeteer-core"; // ✅ Utilisation de `puppeteer-core`
+import puppeteer from "puppeteer-core"; // ✅ Puppeteer-core évite l'installation inutile
 import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Activer CORS
 app.use(cors());
 
-// Installer Chromium avant de démarrer Puppeteer
-exec("apt-get update && apt-get install -y chromium-browser", (error, stdout, stderr) => {
-    if (error) {
-        console.error("❌ Erreur d'installation de Chromium :", error);
-        return;
-    }
-    console.log("✅ Chromium installé avec succès !");
-});
-
-// Route d'accueil pour éviter l'erreur "Cannot GET /"
+// Route d'accueil
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
 
-// Route principale : Scraping des cotes
 app.get("/eurovision-odds", async (req, res) => {
     let browser;
     try {
@@ -31,12 +19,11 @@ app.get("/eurovision-odds", async (req, res) => {
 
         browser = await puppeteer.launch({
             headless: true,
-            executablePath: "/usr/bin/chromium-browser", // ✅ Vérifie le chemin après installation
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(), // ✅ Version intégrée
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
         const page = await browser.newPage();
-
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
 
         console.log("🌐 Chargement de la page...");
@@ -84,10 +71,7 @@ app.get("/eurovision-odds", async (req, res) => {
         console.log("📊 Données extraites :", oddsData.length, "entrées");
         await browser.close();
 
-        res.json({
-            count: oddsData.length,
-            entries: oddsData
-        });
+        res.json({ count: oddsData.length, entries: oddsData });
 
     } catch (error) {
         console.error("❌ Erreur de scraping :", error);
@@ -96,7 +80,6 @@ app.get("/eurovision-odds", async (req, res) => {
     }
 });
 
-// Démarrer le serveur
 app.listen(PORT, () => {
     console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
 });
