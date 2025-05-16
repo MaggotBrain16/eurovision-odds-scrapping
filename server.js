@@ -1,6 +1,5 @@
 import express from "express";
-import puppeteer from "puppeteer";
-import chromium from '@sparticuz/chromium';
+import { chromium } from "playwright-chromium";
 import cors from "cors";
 
 const app = express();
@@ -9,12 +8,12 @@ const PORT = process.env.PORT || 3000;
 // Activer CORS
 app.use(cors());
 
-// Route d'accueil pour éviter l'erreur "Cannot GET /"
+// Route d'accueil
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
 
-// Route de santé pour Render
+// Route de santé
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "OK", message: "Service is running" });
 });
@@ -23,26 +22,18 @@ app.get("/health", (req, res) => {
 app.get("/eurovision-odds", async (req, res) => {
     let browser;
     try {
-        console.log("🚀 Puppeteer démarrage...");
+        console.log("🚀 Playwright démarrage...");
 
-        // Configuration pour Render avec Chromium
-        const isProduction = process.env.NODE_ENV === 'production';
-        
-        browser = await puppeteer.launch({
-            args: isProduction ? [
-                ...chromium.args,
+        browser = await chromium.launch({
+            headless: true,
+            args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox'
-            ] : ['--no-sandbox', '--disable-setuid-sandbox'],
-            defaultViewport: chromium.defaultViewport,
-            executablePath: isProduction ? await chromium.executablePath : undefined,
-            headless: chromium.headless,
+            ]
         });
 
         const page = await browser.newPage();
-
-        // Réduire la charge mémoire
-        await page.setViewport({ width: 1280, height: 720 });
+        
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
 
         console.log("🌐 Chargement de la page...");
@@ -95,7 +86,8 @@ app.get("/eurovision-odds", async (req, res) => {
             count: oddsData.length,
             entries: oddsData,
             timestamp: timestamp,
-            success: true
+            success: true,
+            engine: "playwright"
         });
 
     } catch (error) {
@@ -121,6 +113,6 @@ app.use((err, req, res, next) => {
 
 // Démarrer le serveur
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
+    console.log(`🚀 Eurovision backend avec Playwright prêt sur le port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
