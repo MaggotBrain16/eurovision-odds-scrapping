@@ -1,37 +1,33 @@
 import express from "express";
 import puppeteer from "puppeteer-core";
-import chromium from "chrome-aws-lambda";
 import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Activer CORS
 app.use(cors());
 
+// Route d'accueil
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
 
-app.get("/health", (req, res) => {
-    res.status(200).json({ status: "OK", message: "Service is running" });
-});
+// Fix Puppeteer cache pour qu'il trouve Chromium
+process.env.PUPPETEER_CACHE_DIR = "/opt/render/.cache/puppeteer";
 
 app.get("/eurovision-odds", async (req, res) => {
     let browser;
     try {
-        console.log("🚀 Démarrage du scraping...");
+        console.log("🚀 Puppeteer démarrage...");
 
         browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath,
-            headless: chromium.headless,
+            headless: true,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
         const page = await browser.newPage();
-        
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
         console.log("🌐 Chargement de la page...");
         await page.goto("https://eurovisionworld.com/odds/eurovision", {
@@ -51,6 +47,7 @@ app.get("/eurovision-odds", async (req, res) => {
                 const oddsEls = row.querySelectorAll("td:not(.odt):not(.ohi):not(.opo)");
 
                 if (!countryEl || !winChanceEl || oddsEls.length === 0) {
+                    console.log("⚠️ Ligne ignorée (données manquantes)");
                     return;
                 }
 
@@ -58,6 +55,7 @@ app.get("/eurovision-odds", async (req, res) => {
                 const match = rawText.match(/Eurovision 2025 (.*?): (.*?) - "(.*?)"/);
 
                 if (!match) {
+                    console.warn("⚠️ Format inattendu :", rawText);
                     return;
                 }
 
@@ -74,34 +72,17 @@ app.get("/eurovision-odds", async (req, res) => {
         });
 
         console.log("📊 Données extraites :", oddsData.length, "entrées");
-        
-        res.json({
-            count: oddsData.length,
-            entries: oddsData,
-            timestamp: new Date().toISOString(),
-            success: true
-        });
+        await browser.close();
+
+        res.json({ count: oddsData.length, entries: oddsData });
 
     } catch (error) {
         console.error("❌ Erreur de scraping :", error);
-        res.status(500).json({ 
-            message: "Error during scraping", 
-            error: error.toString(),
-            success: false,
-            timestamp: new Date().toISOString()
-        });
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
+        if (browser) await browser.close();
+        res.status(500).json({ message: "Error during scraping", error: error.toString() });
     }
 });
 
-app.use((err, req, res, next) => {
-    console.error("Error middleware:", err);
-    res.status(500).json({ message: "Internal Server Error", error: err.message });
-});
-
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
     console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
 });
