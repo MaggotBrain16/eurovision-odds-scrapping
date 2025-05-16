@@ -3,26 +3,23 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 3000; // ✅ Adapté pour Render
+const PORT = process.env.PORT || 3000;
 
-// Enable CORS
+// Activer CORS
 app.use(cors());
 
-// Route par défaut pour éviter "Cannot GET /"
+// Route d'accueil pour éviter l'erreur "Cannot GET /"
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
 
+// Route principale : Scraping des cotes
 app.get("/eurovision-odds", async (req, res) => {
     try {
-        console.log("🚀 Puppeteer starting...");
-        
-        // ✅ Définition du cache Puppeteer pour Render
-        process.env.PUPPETEER_CACHE_DIR = '/opt/render/.cache/puppeteer';
+        console.log("🚀 Puppeteer démarrage...");
 
         const browser = await puppeteer.launch({
-            executablePath: '/opt/render/.cache/puppeteer/chrome/linux-136.0.7103.92/chrome',
-            headless: true,
+            headless: "new",
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
@@ -30,7 +27,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
 
-        console.log("🌐 Loading page...");
+        console.log("🌐 Chargement de la page...");
         await page.goto("https://eurovisionworld.com/odds/eurovision", {
             waitUntil: "domcontentloaded",
             timeout: 30000,
@@ -38,7 +35,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
         await page.waitForSelector("tr[data-dt]", { timeout: 30000 });
 
-        console.log("🔍 Extracting data...");
+        console.log("🔍 Extraction des données...");
         const oddsData = await page.evaluate(() => {
             const results = [];
 
@@ -48,7 +45,7 @@ app.get("/eurovision-odds", async (req, res) => {
                 const oddsEls = row.querySelectorAll("td:not(.odt):not(.ohi):not(.opo)");
 
                 if (!countryEl || !winChanceEl || oddsEls.length === 0) {
-                    console.log("⚠️ Row skipped due to missing data");
+                    console.log("⚠️ Ligne ignorée (données manquantes)");
                     return;
                 }
 
@@ -72,7 +69,7 @@ app.get("/eurovision-odds", async (req, res) => {
             return results;
         });
 
-        console.log("📊 Data extracted:", oddsData.length, "entries");
+        console.log("📊 Données extraites :", oddsData.length, "entrées");
         await browser.close();
 
         res.json({
@@ -81,11 +78,12 @@ app.get("/eurovision-odds", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("❌ Scraping error:", error);
+        console.error("❌ Erreur de scraping :", error);
         res.status(500).json({ message: "Error during scraping", error: error.toString() });
     }
 });
 
+// Démarrer le serveur
 app.listen(PORT, () => {
-    console.log(`🚀 Eurovision backend ready on port ${PORT}`);
+    console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
 });
