@@ -1,22 +1,23 @@
 {
   "name": "eurovision-backend",
   "version": "1.0.0",
-  "description": "API for scraping Eurovision betting odds",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js"
+    "start": "node server.js"
   },
-  "dependencies": {
-    "express": "^4.18.2",
-    "puppeteer": "^21.0.0",
-    "cors": "^2.8.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "keywords": ["eurovision", "odds", "scraping", "api"],
+  "keywords": [],
   "author": "MaggotBrain16",
-  "license": "MIT"
+  "license": "ISC",
+  "description": "Backend API for scraping Eurovision odds",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "puppeteer": "^24.8.2",
+    "puppeteer-core": "^24.7.2",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
 }
