@@ -1,5 +1,6 @@
 import express from "express";
 import puppeteer from "puppeteer";
+import chromium from '@sparticuz/chromium';
 import cors from "cors";
 
 const app = express();
@@ -24,20 +25,18 @@ app.get("/eurovision-odds", async (req, res) => {
     try {
         console.log("🚀 Puppeteer démarrage...");
 
+        // Configuration pour Render avec Chromium
+        const isProduction = process.env.NODE_ENV === 'production';
+        
         browser = await puppeteer.launch({
-            headless: "new",
-            args: [
+            args: isProduction ? [
+                ...chromium.args,
                 '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-gpu',
-                '--disable-web-security',
-                '--disable-features=VizDisplayCompositor'
-            ]
+                '--disable-setuid-sandbox'
+            ] : ['--no-sandbox', '--disable-setuid-sandbox'],
+            defaultViewport: chromium.defaultViewport,
+            executablePath: isProduction ? await chromium.executablePath : undefined,
+            headless: chromium.headless,
         });
 
         const page = await browser.newPage();
@@ -90,7 +89,6 @@ app.get("/eurovision-odds", async (req, res) => {
 
         console.log("📊 Données extraites :", oddsData.length, "entrées");
         
-        // Timestamp pour cache
         const timestamp = new Date().toISOString();
         
         res.json({
@@ -109,7 +107,6 @@ app.get("/eurovision-odds", async (req, res) => {
             timestamp: new Date().toISOString()
         });
     } finally {
-        // Assurer la fermeture du navigateur
         if (browser) {
             await browser.close();
         }
@@ -125,5 +122,5 @@ app.use((err, req, res, next) => {
 // Démarrer le serveur
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
-    console.log(`URL: http://0.0.0.0:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
