@@ -3,37 +3,20 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
+// Enable CORS
 app.use(cors());
 
-app.get("/", (req, res) => {
-    res.send("Bienvenue sur l'API Eurovision Odds !");
-});
-
-// Fix Puppeteer cache pour qu'il trouve Chromium
-process.env.PUPPETEER_CACHE_DIR = "/opt/render/.cache/puppeteer";
-process.env.CHROME_BIN = "/opt/render/.cache/puppeteer/chrome";
-
 app.get("/eurovision-odds", async (req, res) => {
-    let browser;
     try {
-        console.log("🚀 Vérification du chemin de Chromium...");
-        const browserPath = process.env.CHROME_BIN;
-
-        console.log("✅ Chemin de Chromium utilisé :", browserPath);
-        console.log("🚀 Puppeteer démarrage...");
-
-        browser = await puppeteer.launch({
-            headless: true,
-            executablePath: browserPath,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-
+        console.log("🚀 Puppeteer starting...");
+        const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
         const page = await browser.newPage();
-        await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
-        console.log("🌐 Chargement de la page...");
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+
+        console.log("🌐 Loading page...");
         await page.goto("https://eurovisionworld.com/odds/eurovision", {
             waitUntil: "domcontentloaded",
             timeout: 30000,
@@ -41,7 +24,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
         await page.waitForSelector("tr[data-dt]", { timeout: 30000 });
 
-        console.log("🔍 Extraction des données...");
+        console.log("🔍 Extracting data...");
         const oddsData = await page.evaluate(() => {
             const results = [];
 
@@ -51,10 +34,11 @@ app.get("/eurovision-odds", async (req, res) => {
                 const oddsEls = row.querySelectorAll("td:not(.odt):not(.ohi):not(.opo)");
 
                 if (!countryEl || !winChanceEl || oddsEls.length === 0) {
-                    console.log("⚠️ Ligne ignorée (données manquantes)");
+                    console.log("⚠️ Row skipped due to missing data");
                     return;
                 }
 
+                // 🔥 Extraction propre du pays, artiste et chanson
                 const rawText = countryEl.getAttribute("title");
                 const match = rawText.match(/Eurovision 2025 (.*?): (.*?) - "(.*?)"/);
 
@@ -75,18 +59,20 @@ app.get("/eurovision-odds", async (req, res) => {
             return results;
         });
 
-        console.log("📊 Données extraites :", oddsData.length, "entrées");
+        console.log("📊 Data extracted:", oddsData.length, "entries");
         await browser.close();
 
-        res.json({ count: oddsData.length, entries: oddsData });
+        res.json({
+            count: oddsData.length,
+            entries: oddsData
+        });
 
     } catch (error) {
-        console.error("❌ Erreur de scraping :", error);
-        if (browser) await browser.close();
+        console.error("❌ Scraping error:", error);
         res.status(500).json({ message: "Error during scraping", error: error.toString() });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
+    console.log(`🚀 Eurovision backend ready on port ${PORT}`);
 });
