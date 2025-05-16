@@ -1,5 +1,5 @@
 import express from "express";
-import puppeteer from "puppeteer-core"; // ✅ Puppeteer-core évite l'installation inutile
+import puppeteer from "puppeteer-core"; // ✅ Utilisation de `puppeteer-core`
 import cors from "cors";
 
 const app = express();
@@ -17,9 +17,12 @@ app.get("/eurovision-odds", async (req, res) => {
     try {
         console.log("🚀 Puppeteer démarrage...");
 
+        const browserFetcher = puppeteer.createBrowserFetcher();
+        const revisionInfo = await browserFetcher.download('1095492'); // ✅ Télécharge Chromium
+
         browser = await puppeteer.launch({
             headless: true,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(), // ✅ Version intégrée
+            executablePath: revisionInfo.executablePath, // ✅ Utilise Chromium téléchargé
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
