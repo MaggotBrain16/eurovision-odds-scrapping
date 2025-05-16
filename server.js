@@ -1,5 +1,5 @@
 import express from "express";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core"; // ✅ Utilisation de `puppeteer-core`
 import cors from "cors";
 
 const app = express();
@@ -21,7 +21,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
         browser = await puppeteer.launch({
             headless: true,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+            executablePath: "/usr/bin/chromium-browser", // ✅ Render fournit déjà Chromium ici
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
