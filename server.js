@@ -7,7 +7,6 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
-// Route d'accueil
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
@@ -22,7 +21,7 @@ app.get("/eurovision-odds", async (req, res) => {
 
         browser = await puppeteer.launch({
             headless: true,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(), // ✅ Utilisation de Chromium intégré
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
