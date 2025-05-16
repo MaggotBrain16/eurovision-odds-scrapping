@@ -1,38 +1,55 @@
 import express from "express";
-import puppeteer from "puppeteer-core"; // ✅ Utilisation de `puppeteer-core`
+import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Activer CORS
 app.use(cors());
 
-// Route d'accueil
+// Route d'accueil pour éviter l'erreur "Cannot GET /"
 app.get("/", (req, res) => {
     res.send("Bienvenue sur l'API Eurovision Odds !");
 });
 
+// Route de santé pour Render
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "OK", message: "Service is running" });
+});
+
+// Route principale : Scraping des cotes
 app.get("/eurovision-odds", async (req, res) => {
     let browser;
     try {
         console.log("🚀 Puppeteer démarrage...");
 
-        const browserFetcher = puppeteer.createBrowserFetcher();
-        const revisionInfo = await browserFetcher.download('1095492'); // ✅ Télécharge Chromium
-
         browser = await puppeteer.launch({
-            headless: true,
-            executablePath: revisionInfo.executablePath, // ✅ Utilise Chromium téléchargé
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            headless: "new",
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor'
+            ]
         });
 
         const page = await browser.newPage();
+
+        // Réduire la charge mémoire
+        await page.setViewport({ width: 1280, height: 720 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
 
         console.log("🌐 Chargement de la page...");
         await page.goto("https://eurovisionworld.com/odds/eurovision", {
             waitUntil: "domcontentloaded",
-            timeout: 40000,
+            timeout: 30000,
         });
 
         await page.waitForSelector("tr[data-dt]", { timeout: 30000 });
@@ -72,17 +89,41 @@ app.get("/eurovision-odds", async (req, res) => {
         });
 
         console.log("📊 Données extraites :", oddsData.length, "entrées");
-        await browser.close();
-
-        res.json({ count: oddsData.length, entries: oddsData });
+        
+        // Timestamp pour cache
+        const timestamp = new Date().toISOString();
+        
+        res.json({
+            count: oddsData.length,
+            entries: oddsData,
+            timestamp: timestamp,
+            success: true
+        });
 
     } catch (error) {
         console.error("❌ Erreur de scraping :", error);
-        if (browser) await browser.close();
-        res.status(500).json({ message: "Error during scraping", error: error.toString() });
+        res.status(500).json({ 
+            message: "Error during scraping", 
+            error: error.toString(),
+            success: false,
+            timestamp: new Date().toISOString()
+        });
+    } finally {
+        // Assurer la fermeture du navigateur
+        if (browser) {
+            await browser.close();
+        }
     }
 });
 
-app.listen(PORT, () => {
+// Middleware de gestion d'erreurs
+app.use((err, req, res, next) => {
+    console.error("Error middleware:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+});
+
+// Démarrer le serveur
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Eurovision backend prêt sur le port ${PORT}`);
+    console.log(`URL: http://0.0.0.0:${PORT}`);
 });
