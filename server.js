@@ -1,5 +1,5 @@
 import express from "express";
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
@@ -13,18 +13,15 @@ app.get("/", (req, res) => {
 
 // Fix Puppeteer cache pour qu'il trouve Chromium
 process.env.PUPPETEER_CACHE_DIR = "/opt/render/.cache/puppeteer";
+process.env.CHROME_BIN = "/opt/render/.cache/puppeteer/chrome";
 
 app.get("/eurovision-odds", async (req, res) => {
     let browser;
     try {
         console.log("🚀 Vérification du chemin de Chromium...");
-        const browserPath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
+        const browserPath = process.env.CHROME_BIN;
 
-        if (!browserPath) {
-            throw new Error("❌ Chromium introuvable, vérifiez l'installation !");
-        }
-
-        console.log("✅ Chemin de Chromium détecté :", browserPath);
+        console.log("✅ Chemin de Chromium utilisé :", browserPath);
         console.log("🚀 Puppeteer démarrage...");
 
         browser = await puppeteer.launch({
